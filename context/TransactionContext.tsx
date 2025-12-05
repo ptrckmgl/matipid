@@ -1,6 +1,11 @@
-import { insertTransaction } from "@/utils/db";
+import {
+  deleteTransactionFromDB,
+  getAllTransactionsFromDB,
+  insertTransactionToDB,
+  updateTransactionInDB,
+} from "@/utils/db";
 import { useSQLiteContext } from "expo-sqlite";
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import { Transaction } from "../constants/types";
 
 interface TransactionContextType {
@@ -17,27 +22,51 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const db = useSQLiteContext();
 
   const addTransaction = async (transaction: Omit<Transaction, "id">) => {
-    // Insert into DB
-    const id = await insertTransaction(
-      db,
-      transaction.amount,
-      transaction.category,
-      transaction.note ?? "",
-      transaction.date,
-      transaction.type
-    );
-    // Add to local state
-    const newTransaction = { ...transaction, id: id.toString() };
-    setTransactions([newTransaction, ...transactions]);
+    try {
+      const id = await insertTransactionToDB(
+        db,
+        transaction.amount,
+        transaction.category,
+        transaction.note ?? "",
+        transaction.date,
+        transaction.type
+      );
+      const newTransaction = { ...transaction, id: id.toString() };
+      setTransactions([newTransaction, ...transactions]);
+    } catch (error) {
+      console.error("Failed to add transaction:", error);
+    }
   };
 
-  const deleteTransaction = (id: string) => {
-    setTransactions(transactions.filter((t) => t.id !== id));
+  const deleteTransaction = async (id: string) => {
+    try {
+      await deleteTransactionFromDB(db, Number(id));
+      setTransactions(transactions.filter((t) => t.id !== id));
+    } catch (error) {
+      console.error("Failed to delete transaction:", error);
+    }
   };
 
-  const updateTransaction = (transaction: Transaction) => {
-    setTransactions(transactions.map((t) => (t.id === transaction.id ? transaction : t)));
+  const updateTransaction = async (transaction: Transaction) => {
+    try {
+      await updateTransactionInDB(db, transaction);
+      setTransactions(transactions.map((t) => (t.id === transaction.id ? transaction : t)));
+    } catch (error) {
+      console.error("Failed to update transaction:", error);
+    }
   };
+
+  useEffect(() => {
+    async function loadTransactions() {
+      try {
+        const allTransactions = await getAllTransactionsFromDB(db);
+        setTransactions(allTransactions);
+      } catch (error) {
+        console.error("Failed to load transactions:", error);
+      }
+    }
+    loadTransactions();
+  }, [db]);
 
   return (
     <TransactionContext.Provider value={{ transactions, addTransaction, deleteTransaction, updateTransaction }}>
