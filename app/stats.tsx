@@ -4,12 +4,13 @@ import React from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { PieChart } from 'react-native-gifted-charts';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { EXPENSE_CATEGORIES } from '../constants/types';
+import { useCategories } from '../context/CategoryContext';
 import { useTransactions } from '../context/TransactionContext';
 
 export default function StatsScreen() {
     const router = useRouter();
     const { transactions } = useTransactions();
+    const { expenseCategories, getCategoryByName } = useCategories();
 
     const totalIncome = transactions
         .filter((t) => t.type === 'income')
@@ -22,24 +23,16 @@ export default function StatsScreen() {
     const totalBalance = totalIncome - totalExpense;
     const savings = totalIncome > totalExpense ? totalIncome - totalExpense : 0;
 
-    const expenseByCategory = EXPENSE_CATEGORIES.map((cat) => {
+    const expenseByCategory = expenseCategories.map((cat) => {
         const amount = transactions
-            .filter((t) => t.type === 'expense' && t.category === cat)
+            .filter((t) => t.type === 'expense' && t.category === cat.name)
             .reduce((acc, curr) => acc + curr.amount, 0);
-        return { category: cat, amount };
+        return { category: cat.name, amount, color: cat.color };
     }).filter((item) => item.amount > 0);
 
-    const pieData = expenseByCategory.map((item, index) => ({
+    const pieData = expenseByCategory.map((item) => ({
         value: item.amount,
-        color: [
-            '#F97316', 
-            '#3B82F6', 
-            '#A855F7', 
-            '#EF4444', 
-            '#EC4899', 
-            '#10B981', 
-            '#64748B', 
-        ][index % 7],
+        color: item.color,
         text: `${((item.amount / totalExpense) * 100).toFixed(0)}%`,
     }));
 

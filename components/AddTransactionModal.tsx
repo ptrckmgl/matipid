@@ -1,23 +1,14 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {
-    BookOpen,
-    Briefcase,
     Calendar,
-    Car,
-    Coffee,
-    DollarSign,
-    Gift,
-    HelpCircle,
-    Landmark,
-    PiggyBank,
-    Shirt,
     Trash2,
-    TrendingUp,
     X
 } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { Alert, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { EXPENSE_CATEGORIES, Transaction, TransactionType } from '../constants/types';
+import { Transaction, TransactionType } from '../constants/types';
+import { useCategories } from '../context/CategoryContext';
+import { CategoryIcon } from './CategoryIcon';
 
 interface AddTransactionModalProps {
     visible: boolean;
@@ -28,30 +19,6 @@ interface AddTransactionModalProps {
     initialTransaction?: Transaction | null;
 }
 
-const INCOME_CATEGORIES = ['Salary', 'Business', 'Gift', 'Investment', 'Other'];
-
-const getCategoryIcon = (category: string, type: TransactionType, size: number = 18) => {
-    if (type === 'expense') {
-        switch (category) {
-            case 'Food and Drinks': return <Coffee size={size} color="white" />;
-            case 'Education': return <BookOpen size={size} color="white" />;
-            case 'Clothes': return <Shirt size={size} color="white" />;
-            case 'Transportation': return <Car size={size} color="white" />;
-            case 'Entertainment': return <Gift size={size} color="white" />;
-            case 'Savings': return <PiggyBank size={size} color="white" />;
-            default: return <HelpCircle size={size} color="white" />;
-        }
-    } else {
-        switch (category) {
-            case 'Salary': return <Briefcase size={size} color="white" />;
-            case 'Business': return <TrendingUp size={size} color="white" />;
-            case 'Gift': return <Gift size={size} color="white" />;
-            case 'Investment': return <Landmark size={size} color="white" />;
-            default: return <DollarSign size={size} color="white" />;
-        }
-    }
-};
-
 export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
     visible,
     onClose,
@@ -60,13 +27,15 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
     type,
     initialTransaction
 }) => {
+    const { expenseCategories, incomeCategories, getCategoryByName } = useCategories();
     const [amount, setAmount] = useState('');
-    const [category, setCategory] = useState(type === 'expense' ? EXPENSE_CATEGORIES[0] : INCOME_CATEGORIES[0]);
+    const [category, setCategory] = useState('');
     const [note, setNote] = useState('');
     const [date, setDate] = useState(new Date());
     const [showDatePicker, setShowDatePicker] = useState(false);
+    const [errors, setErrors] = useState({ amount: false });
 
-    const categories = type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
+    const categories = type === 'expense' ? expenseCategories : incomeCategories;
 
     useEffect(() => {
         if (initialTransaction) {
@@ -77,11 +46,18 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
         } else {
             resetForm();
         }
-    }, [initialTransaction, visible]);
+    }, [initialTransaction, visible, categories]);
+
+    useEffect(() => {
+        if (categories.length > 0 && !category) {
+            setCategory(categories[0].name);
+        }
+    }, [categories]);
 
     const handleSubmit = () => {
         const numAmount = parseFloat(amount);
         if (isNaN(numAmount) || numAmount <= 0) {
+            setErrors({ ...errors, amount: true });
             return;
         }
         onSubmit(numAmount, category, note, date, type, initialTransaction?.id);
@@ -111,9 +87,12 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
 
     const resetForm = () => {
         setAmount('');
-        setCategory(type === 'expense' ? EXPENSE_CATEGORIES[0] : INCOME_CATEGORIES[0]);
+        setCategory(categories.length > 0 ? categories[0].name : '');
         setNote('');
         setDate(new Date());
+        setNote('');
+        setDate(new Date());
+        setErrors({ amount: false });
     };
 
     const onDateChange = (event: any, selectedDate?: Date) => {
@@ -139,15 +118,18 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                     <ScrollView showsVerticalScrollIndicator={false}>
                         <View className="mb-6">
                             <Text className="text-slate-500 font-medium mb-2">Amount</Text>
-                            <View className="flex-row items-center bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                            <View className={`flex-row items-center bg-slate-50 p-4 rounded-2xl border ${errors.amount ? 'border-red-500' : 'border-slate-200'}`}>
                                 <Text className="text-2xl font-bold text-slate-800 mr-2">₱</Text>
                                 <TextInput
-                                    className="flex-1 text-2xl font-bold text-slate-800"
-                                    placeholder="0.00"
+                                    className={`flex-1 ${errors.amount ? 'text-base italic text-slate-800 opacity-70' : 'text-2xl font-bold text-slate-800'}`}
+                                    placeholder={errors.amount ? "*Required*" : "0.00"}
                                     keyboardType="numeric"
                                     value={amount}
-                                    onChangeText={setAmount}
-                                    placeholderTextColor="#94A3B8"
+                                    onChangeText={(text) => {
+                                        setAmount(text);
+                                        if (text) setErrors({ ...errors, amount: false });
+                                    }}
+                                    placeholderTextColor={errors.amount ? "#EF4444" : "#94A3B8"}
                                 />
                             </View>
                         </View>
@@ -157,18 +139,23 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                             <View className="flex-row flex-wrap gap-2">
                                 {categories.map((cat) => (
                                     <TouchableOpacity
-                                        key={cat}
-                                        onPress={() => setCategory(cat)}
-                                        className={`px-4 py-2.5 rounded-full border items-center justify-center ${category === cat
-                                                ? 'bg-indigo-600 border-indigo-600'
-                                                : 'bg-white border-slate-200'
+                                        key={cat.id}
+                                        onPress={() => setCategory(cat.name)}
+                                        className={`px-4 py-3 rounded-2xl border flex-row items-center gap-2 ${category === cat.name
+                                            ? 'bg-indigo-600 border-indigo-600'
+                                            : 'bg-white border-slate-200'
                                             }`}
                                     >
+                                        <CategoryIcon
+                                            iconName={cat.icon}
+                                            color={category === cat.name ? 'white' : cat.color}
+                                            size={16}
+                                        />
                                         <Text
-                                            className={`font-medium ${category === cat ? 'text-white' : 'text-slate-600'
+                                            className={`font-medium ${category === cat.name ? 'text-white' : 'text-slate-600'
                                                 }`}
                                         >
-                                            {cat}
+                                            {cat.name}
                                         </Text>
                                     </TouchableOpacity>
                                 ))}
