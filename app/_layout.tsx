@@ -6,6 +6,8 @@ import { cssInterop } from "nativewind";
 import { useEffect, useState } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { CustomSplashScreen } from "../components/SplashScreen";
+import { BudgetProvider } from "../context/BudgetContext";
+import { CategoryProvider } from "../context/CategoryContext";
 import { TransactionProvider } from "../context/TransactionContext";
 import "../global.css";
 
@@ -33,9 +35,13 @@ export default function RootLayout() {
   return (
     <SQLiteProvider databaseName="matipid.db" onInit={initDB} options={{ useNewConnection: false }}>
       <SafeAreaProvider>
-        <TransactionProvider>
-          <Stack screenOptions={{ headerShown: false }} />
-        </TransactionProvider>
+        <CategoryProvider>
+          <TransactionProvider>
+            <BudgetProvider>
+              <Stack screenOptions={{ headerShown: false }} />
+            </BudgetProvider>
+          </TransactionProvider>
+        </CategoryProvider>
       </SafeAreaProvider>
     </SQLiteProvider>
   );
