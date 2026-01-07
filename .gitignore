@@ -3,6 +3,9 @@
 # dependencies
 node_modules/
 
+# Ignore features documentation
+FEATURES.md
+
 # Expo
 .expo/
 dist/
