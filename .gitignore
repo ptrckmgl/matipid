@@ -3,8 +3,12 @@
 # dependencies
 node_modules/
 
-# Ignore features documentation
-FEATURES.md
+# Documentation
+CORE_FEATURES.md
+PROJECT_STRUCTURE.md
+EFFICIENT_FUNCTIONALITY.md
+IMPLEMENTATION_STATUS.md
+IMPLEMENTATION_COMPLETE.md
 
 # Expo
 .expo/

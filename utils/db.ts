@@ -1,5 +1,11 @@
 import * as SQLite from "expo-sqlite";
-import { Budget, Category, DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES, Transaction } from "../constants/types";
+import {
+  Budget,
+  Category,
+  DEFAULT_EXPENSE_CATEGORIES,
+  DEFAULT_INCOME_CATEGORIES,
+  Transaction,
+} from "../constants/types";
 
 export async function initDB(db: SQLite.SQLiteDatabase) {
   await db.execAsync(`
@@ -31,28 +37,36 @@ export async function initDB(db: SQLite.SQLiteDatabase) {
     FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE,
     UNIQUE(category_id, month)
   );
+  
+  CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
+  CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(type);
+  CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(category);
+  CREATE INDEX IF NOT EXISTS idx_budgets_month ON budgets(month);
+  CREATE INDEX IF NOT EXISTS idx_budgets_category ON budgets(category_id);
   `);
 
   // Seed default categories if none exist
-  const categoryCount = await db.getFirstAsync<{ count: number }>(
-    "SELECT COUNT(*) as count FROM categories"
-  );
+  const categoryCount = await db.getFirstAsync<{ count: number }>("SELECT COUNT(*) as count FROM categories");
 
   if (categoryCount?.count === 0) {
     // Insert default expense categories
     for (const cat of DEFAULT_EXPENSE_CATEGORIES) {
-      await db.runAsync(
-        "INSERT INTO categories (name, type, color, icon) VALUES (?, ?, ?, ?)",
-        [cat.name, 'expense', cat.color, cat.icon]
-      );
+      await db.runAsync("INSERT INTO categories (name, type, color, icon) VALUES (?, ?, ?, ?)", [
+        cat.name,
+        "expense",
+        cat.color,
+        cat.icon,
+      ]);
     }
 
     // Insert default income categories
     for (const cat of DEFAULT_INCOME_CATEGORIES) {
-      await db.runAsync(
-        "INSERT INTO categories (name, type, color, icon) VALUES (?, ?, ?, ?)",
-        [cat.name, 'income', cat.color, cat.icon]
-      );
+      await db.runAsync("INSERT INTO categories (name, type, color, icon) VALUES (?, ?, ?, ?)", [
+        cat.name,
+        "income",
+        cat.color,
+        cat.icon,
+      ]);
     }
   }
 }
@@ -129,10 +143,12 @@ export async function insertCategoryToDB(
   color: string,
   icon: string
 ): Promise<number> {
-  const result = await db.runAsync(
-    "INSERT INTO categories (name, type, color, icon) VALUES (?, ?, ?, ?)",
-    [name, type, color, icon]
-  );
+  const result = await db.runAsync("INSERT INTO categories (name, type, color, icon) VALUES (?, ?, ?, ?)", [
+    name,
+    type,
+    color,
+    icon,
+  ]);
   return result.lastInsertRowId;
 }
 
@@ -143,16 +159,10 @@ export async function updateCategoryInDB(
   color: string,
   icon: string
 ): Promise<void> {
-  await db.runAsync(
-    "UPDATE categories SET name = ?, color = ?, icon = ? WHERE id = ?",
-    [name, color, icon, id]
-  );
+  await db.runAsync("UPDATE categories SET name = ?, color = ?, icon = ? WHERE id = ?", [name, color, icon, id]);
 }
 
-export async function deleteCategoryFromDB(
-  db: SQLite.SQLiteDatabase,
-  id: number
-): Promise<void> {
+export async function deleteCategoryFromDB(db: SQLite.SQLiteDatabase, id: number): Promise<void> {
   // Check if category is used in transactions
   const usage = await db.getFirstAsync<{ count: number }>(
     "SELECT COUNT(*) as count FROM transactions WHERE category = (SELECT name FROM categories WHERE id = ?)",
@@ -186,10 +196,7 @@ export async function getAllBudgetsFromDB(db: SQLite.SQLiteDatabase): Promise<Bu
   }));
 }
 
-export async function getBudgetsForMonthFromDB(
-  db: SQLite.SQLiteDatabase,
-  month: string
-): Promise<Budget[]> {
+export async function getBudgetsForMonthFromDB(db: SQLite.SQLiteDatabase, month: string): Promise<Budget[]> {
   const result = await db.getAllAsync<{
     id: number;
     category_id: number;
@@ -218,10 +225,7 @@ export async function upsertBudgetToDB(
   );
 }
 
-export async function deleteBudgetFromDB(
-  db: SQLite.SQLiteDatabase,
-  id: number
-): Promise<void> {
+export async function deleteBudgetFromDB(db: SQLite.SQLiteDatabase, id: number): Promise<void> {
   await db.runAsync("DELETE FROM budgets WHERE id = ?", [id]);
 }
 
@@ -234,19 +238,20 @@ export async function exportDataToJSON(db: SQLite.SQLiteDatabase): Promise<strin
   const categories = await getAllCategoriesFromDB(db);
   const budgets = await getAllBudgetsFromDB(db);
 
-  return JSON.stringify({
-    version: 1,
-    exportDate: new Date().toISOString(),
-    transactions,
-    categories,
-    budgets,
-  }, null, 2);
+  return JSON.stringify(
+    {
+      version: 1,
+      exportDate: new Date().toISOString(),
+      transactions,
+      categories,
+      budgets,
+    },
+    null,
+    2
+  );
 }
 
-export async function importDataFromJSON(
-  db: SQLite.SQLiteDatabase,
-  jsonData: string
-): Promise<void> {
+export async function importDataFromJSON(db: SQLite.SQLiteDatabase, jsonData: string): Promise<void> {
   const data = JSON.parse(jsonData);
 
   // Clear existing data
@@ -259,33 +264,39 @@ export async function importDataFromJSON(
   // Import categories
   if (data.categories && Array.isArray(data.categories)) {
     for (const cat of data.categories) {
-      await db.runAsync(
-        "INSERT INTO categories (id, name, type, color, icon) VALUES (?, ?, ?, ?, ?)",
-        [Number(cat.id), cat.name, cat.type, cat.color, cat.icon]
-      );
+      await db.runAsync("INSERT INTO categories (id, name, type, color, icon) VALUES (?, ?, ?, ?, ?)", [
+        Number(cat.id),
+        cat.name,
+        cat.type,
+        cat.color,
+        cat.icon,
+      ]);
     }
   }
 
   // Import transactions
   if (data.transactions && Array.isArray(data.transactions)) {
     for (const txn of data.transactions) {
-      await db.runAsync(
-        "INSERT INTO transactions (id, amount, category, note, date, type) VALUES (?, ?, ?, ?, ?, ?)",
-        [Number(txn.id), txn.amount, txn.category, txn.note || "", txn.date, txn.type]
-      );
+      await db.runAsync("INSERT INTO transactions (id, amount, category, note, date, type) VALUES (?, ?, ?, ?, ?, ?)", [
+        Number(txn.id),
+        txn.amount,
+        txn.category,
+        txn.note || "",
+        txn.date,
+        txn.type,
+      ]);
     }
   }
 
   // Import budgets
   if (data.budgets && Array.isArray(data.budgets)) {
     for (const budget of data.budgets) {
-      await db.runAsync(
-        "INSERT INTO budgets (id, category_id, limit_amount, month) VALUES (?, ?, ?, ?)",
-        [Number(budget.id), Number(budget.categoryId), budget.limitAmount, budget.month]
-      );
+      await db.runAsync("INSERT INTO budgets (id, category_id, limit_amount, month) VALUES (?, ?, ?, ?)", [
+        Number(budget.id),
+        Number(budget.categoryId),
+        budget.limitAmount,
+        budget.month,
+      ]);
     }
   }
 }
-
-
-

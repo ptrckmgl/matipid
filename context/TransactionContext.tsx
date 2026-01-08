@@ -4,8 +4,10 @@ import {
   insertTransactionToDB,
   updateTransactionInDB,
 } from "@/utils/db";
+import { formatValidationErrors, validateTransaction } from "@/utils/validation";
 import { useSQLiteContext } from "expo-sqlite";
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { Alert } from "react-native";
 import { Transaction } from "../constants/types";
 
 interface TransactionContextType {
@@ -23,6 +25,20 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const addTransaction = async (transaction: Omit<Transaction, "id">) => {
     try {
+      // Validate transaction data
+      const validation = validateTransaction({
+        amount: transaction.amount,
+        category: transaction.category,
+        date: transaction.date,
+        type: transaction.type,
+      });
+
+      if (!validation.isValid) {
+        const errorMessage = formatValidationErrors(validation.errors);
+        Alert.alert("Invalid Transaction", errorMessage);
+        throw new Error(errorMessage);
+      }
+
       const id = await insertTransactionToDB(
         db,
         transaction.amount,
@@ -35,6 +51,10 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setTransactions([newTransaction, ...transactions]);
     } catch (error) {
       console.error("Failed to add transaction:", error);
+      if (error instanceof Error && !error.message.includes("Invalid")) {
+        Alert.alert("Error", "Failed to save transaction. Please try again.");
+      }
+      throw error;
     }
   };
 
@@ -44,15 +64,35 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setTransactions(transactions.filter((t) => t.id !== id));
     } catch (error) {
       console.error("Failed to delete transaction:", error);
+      Alert.alert("Error", "Failed to delete transaction. Please try again.");
+      throw error;
     }
   };
 
   const updateTransaction = async (transaction: Transaction) => {
     try {
+      // Validate transaction data
+      const validation = validateTransaction({
+        amount: transaction.amount,
+        category: transaction.category,
+        date: transaction.date,
+        type: transaction.type,
+      });
+
+      if (!validation.isValid) {
+        const errorMessage = formatValidationErrors(validation.errors);
+        Alert.alert("Invalid Transaction", errorMessage);
+        throw new Error(errorMessage);
+      }
+
       await updateTransactionInDB(db, transaction);
       setTransactions(transactions.map((t) => (t.id === transaction.id ? transaction : t)));
     } catch (error) {
       console.error("Failed to update transaction:", error);
+      if (error instanceof Error && !error.message.includes("Invalid")) {
+        Alert.alert("Error", "Failed to update transaction. Please try again.");
+      }
+      throw error;
     }
   };
 
@@ -63,6 +103,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
         setTransactions(allTransactions);
       } catch (error) {
         console.error("Failed to load transactions:", error);
+        Alert.alert("Error", "Failed to load transactions. Please restart the app.");
       }
     }
     loadTransactions();
