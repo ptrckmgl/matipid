@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "expense-tracker-app",
-    "slug": "expense-tracker-app",
+    "name": "Matipid",
+    "slug": "Matipid",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/splash-icon.png",
     "scheme": "expensetrackerapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -42,6 +42,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "81ab5ac2-a186-47f5-8423-dcfaed7e5137"
+      }
     }
   }
 }
