@@ -33,7 +33,11 @@ export default function RootLayout() {
   }
 
   return (
-    <SQLiteProvider databaseName="matipid.db" onInit={initDB} options={{ useNewConnection: false }}>
+    <SQLiteProvider
+      databaseName="matipid.db"
+      onInit={initDB}
+      options={{ useNewConnection: false }}
+    >
       <SafeAreaProvider>
         <CategoryProvider>
           <TransactionProvider>
